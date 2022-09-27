@@ -1,0 +1,24 @@
+[package]
+name = "rciso"
+version = "0.1.0"
+edition = "2021"
+authors = ["gameltb <gamegccltb@gmail.com>"]
+description = "rciso is a port of ciso, which a simple commandline utility to compress PSP iso files"
+
+license = "GPL-2.0"
+
+[dependencies]
+binrw = "0.10"
+flate2 = "1.0"
+
+clap  = { version = "3.2", optional = true, features = ["derive"] }
+
+[features]
+build-binary = ["clap"]
+
+[lib]         
+name = "rciso"    
+
+[[bin]]         
+name = "rciso"    
+required-features = ["build-binary"]
