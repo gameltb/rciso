@@ -1,8 +1,12 @@
+#![feature(result_option_inspect)]
+
 use binrw::{binrw, BinWrite};
+use pbr::ProgressBar;
 
 use std::{
     error::Error,
     io::{Read, Seek, SeekFrom, Write},
+    time::Duration,
 };
 
 use binrw::BinRead;
@@ -44,6 +48,21 @@ pub fn decomp_ciso<R: Read + Seek, W: Write>(
 
     let ciso_total_block = ciso_header.total_bytes / (ciso_header.block_size as u64);
 
+    println!(
+        r"Total File Size {} bytes
+block size      {}  bytes
+total blocks    {}  blocks
+index align     {}
+version         {}",
+        ciso_header.total_bytes,
+        ciso_header.block_size,
+        ciso_total_block,
+        ciso_header.align,
+        ciso_header.ver
+    );
+
+    let mut pb = ProgressBar::new(ciso_total_block);
+    pb.set_max_refresh_rate(Some(Duration::from_millis(300)));
     let mut decompresser = flate2::Decompress::new(false);
 
     for block in 0..ciso_total_block {
@@ -64,16 +83,24 @@ pub fn decomp_ciso<R: Read + Seek, W: Write>(
             writer.write_all(&read_buff)?;
         } else {
             let mut decompress_buff = vec![0u8; ciso_header.block_size as usize];
-            decompresser.decompress(
-                &read_buff,
-                &mut decompress_buff,
-                flate2::FlushDecompress::Finish,
-            )?;
+            decompresser
+                .decompress(
+                    &read_buff,
+                    &mut decompress_buff,
+                    flate2::FlushDecompress::Finish,
+                )
+                .inspect_err(|_| {
+                    pb.set_max_refresh_rate(None);
+                    pb.tick();
+                    println!("{:?}\n{:?}", index, read_buff);
+                })?;
             writer.write_all(&decompress_buff)?;
             decompresser.reset(false);
         }
+        pb.inc();
     }
 
+    pb.finish();
     Ok(())
 }
 
@@ -106,6 +133,8 @@ pub fn comp_ciso<R: Read + Seek, W: Write + Seek>(
     let align_b = 1 << (ciso_header.align);
     let align_m = align_b - 1;
 
+    let mut pb = ProgressBar::new(ciso_total_block);
+    pb.set_max_refresh_rate(Some(Duration::from_millis(300)));
     let mut compresser = flate2::Compress::new(flate2::Compression::new(level as u32), false);
 
     for block in 0..ciso_total_block {
@@ -140,6 +169,7 @@ pub fn comp_ciso<R: Read + Seek, W: Write + Seek>(
         write_pos += cmp_size;
 
         compresser.reset();
+        pb.inc();
     }
 
     ciso_header.index_buff[ciso_total_block as usize] =
@@ -149,5 +179,6 @@ pub fn comp_ciso<R: Read + Seek, W: Write + Seek>(
 
     ciso_header.write(writer)?;
 
+    pb.finish();
     Ok(())
 }
