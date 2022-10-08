@@ -1,6 +1,6 @@
 use std::{
     fs::{File, OpenOptions},
-    io::BufReader,
+    io::{BufReader, self},
 };
 
 use clap::Parser;
@@ -33,7 +33,9 @@ fn main() {
     let mut outfile = File::create(args.outfile).unwrap();
 
     if args.level <= 0 {
-        decomp_ciso(&mut file, &mut outfile).unwrap();
+        let ciso = Ciso::new(file).unwrap();
+        let mut buff_ciso = BufReader::new(ciso);
+        io::copy(&mut buff_ciso, &mut outfile).unwrap();
     } else if args.level <= 9 {
         comp_ciso(&mut file, &mut outfile, args.level).unwrap();
     } else {
