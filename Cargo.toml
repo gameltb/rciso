@@ -8,7 +8,7 @@ description = "rciso is a port of ciso, which a simple commandline utility to co
 license = "GPL-2.0"
 
 [dependencies]
-binrw = "0.10"
+binrw = "0.11"
 flate2 = "1.0"
 
 clap  = { version = "4.0", optional = true, features = ["derive"] }
